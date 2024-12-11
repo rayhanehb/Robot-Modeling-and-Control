@@ -1,0 +1,52 @@
+function tau = att(q, q2, myrobot)
+    o = zeros(3,7);
+    of = zeros(3,7);
+    Jv = zeros(3,6,6);
+    z = zeros(3,6);
+    H = eye(4,4);
+    Hf = eye(4,4);
+    zeta = 1*ones(6,1);
+    tau = zeros(6,1);
+    
+    % loop through the number of joints in our manipulator
+    for i = 1:6
+        % let z(:, i) be the z axis for joint i-1
+        z(:,i) = H(1:3, 3);
+        joint = q;
+        % calculate the forward kinematics to get the origin of joint i
+        A_i = [cos(joint(i)), -sin(joint(i))*cos(myrobot.alpha(i)), sin(joint(i))*sin(myrobot.alpha(i)), myrobot.a(i)*cos(joint(i));
+               sin(joint(i)), cos(joint(i))*cos(myrobot.alpha(i)), -cos(joint(i))*sin(myrobot.alpha(i)), myrobot.a(i)*sin(joint(i));
+               0, sin(myrobot.alpha(i)), cos(myrobot.alpha(i)), myrobot.d(i);
+               0, 0, 0, 1];
+        H = H*A_i;
+        % let o(:, i) be the origin for joint i-1
+        o(:, i+1) = H(1:3, 4);
+        
+        % calculate the forward kinematics to get the desired origin of
+        % joint i
+        joint = q2;
+        A_if = [cos(joint(i)), -sin(joint(i))*cos(myrobot.alpha(i)), sin(joint(i))*sin(myrobot.alpha(i)), myrobot.a(i)*cos(joint(i));
+               sin(joint(i)), cos(joint(i))*cos(myrobot.alpha(i)), -cos(joint(i))*sin(myrobot.alpha(i)), myrobot.a(i)*sin(joint(i));
+               0, sin(myrobot.alpha(i)), cos(myrobot.alpha(i)), myrobot.d(i);
+               0, 0, 0, 1];
+        Hf = Hf*A_if;
+        of(:,i+1) = Hf(1:3, 4);
+        
+        % calculate the jacobian
+        for j=1:6
+            if j<=i
+                Jv(:,j,i) = cross( z(:,j), ( o(:,i+1) - o(:,j) ) );
+            end
+        end
+        
+        % calculate the artificial 
+        F = -zeta(i)*(o(:,i+1) - of(:, i+1));
+
+        tau = tau + Jv(:,:,i)'*F; 
+    end
+
+    tau = tau';
+    if norm(tau) ~= 0
+        tau = tau/norm(tau);
+    end
+end
